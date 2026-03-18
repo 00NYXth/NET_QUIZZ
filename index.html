@@ -1,35 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Networking Quiz</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Networking Quiz – MTA 98-366</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
-  <!-- HOME SCREEN -->
-  <div id="screen-home" class="screen active">
-    <div class="home-wrap">
-      <div class="logo-badge">NET</div>
-      <h1 class="home-title">Networking<br/><span>Quiz</span></h1>
-      <p class="home-sub">171 questions · CompTIA Network+ prep</p>
+<!-- ══ HOME ═══════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="home-wrap">
+    <div class="logo-badge">NET</div>
+    <h1 class="home-title">Networking<br/><span>Quiz</span></h1>
+    <p class="home-sub">172 questions · MTA 98-366 prep</p>
 
-      <div class="mode-cards">
+    <div class="mode-cards">
+      <div class="mode-card exam-card" data-mode="exam">
+        <div class="exam-left">
+          <span class="mode-icon">🎓</span>
+          <div>
+            <strong>Exam Mode</strong>
+            <span>43 questions</span>
+          </div>
+        </div>
+        <div class="pass-pill">Pass ≥ 700 / 1000</div>
+      </div>
+      <div class="mode-grid">
         <div class="mode-card" data-mode="10">
           <span class="mode-icon">⚡</span>
           <strong>Quick</strong>
           <span>10 questions</span>
         </div>
-        <div class="mode-card" data-mode="20">
+        <div class="mode-card selected" data-mode="20">
           <span class="mode-icon">🎯</span>
           <strong>Standard</strong>
           <span>20 questions</span>
         </div>
-        <div class="mode-card selected" data-mode="50">
+        <div class="mode-card" data-mode="50">
           <span class="mode-icon">🔥</span>
           <strong>Challenge</strong>
           <span>50 questions</span>
@@ -37,84 +48,95 @@
         <div class="mode-card" data-mode="all">
           <span class="mode-icon">💪</span>
           <strong>Full Test</strong>
-          <span>All 171</span>
+          <span>All 172</span>
         </div>
       </div>
+    </div>
 
-      <button class="btn-start" id="btn-start">Start Quiz →</button>
+    <button class="btn-primary" id="btn-start">Start Quiz →</button>
+    <button class="btn-ghost" id="btn-browse">Browse All Questions</button>
+  </div>
+</div>
 
-      <button class="btn-browse" id="btn-browse">Browse All Questions</button>
+<!-- ══ QUIZ ════════════════════════════════════════════════════ -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-wrap">
+
+    <header class="quiz-header">
+      <button class="btn-back-quiz" id="btn-back-quiz">← Back</button>
+      <div class="header-mid">
+        <span class="prog-text">Question <span id="q-current">1</span> of <span id="q-total">20</span></span>
+        <span class="exam-pts-info" id="exam-pts-info" style="display:none">~<span id="pts-per-q">23</span> pts each</span>
+      </div>
+      <div class="score-chip"><span id="score-label">Score</span>: <strong id="score-live">0</strong></div>
+    </header>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+
+    <div class="question-card" id="question-card">
+      <div class="multi-hint" id="multi-hint" style="display:none">
+        ☑ Select ALL correct answers, then click Submit
+      </div>
+      <p class="question-text" id="question-text"></p>
+    </div>
+
+    <div class="options-list" id="options-list"></div>
+
+    <div class="feedback-box" id="feedback-box" style="display:none">
+      <div class="feedback-inner" id="feedback-inner"></div>
+    </div>
+
+    <div class="quiz-footer">
+      <button class="btn-submit" id="btn-submit" style="display:none" disabled>Submit Answer</button>
+      <button class="btn-primary btn-next" id="btn-next" style="display:none">Next Question →</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ RESULT ══════════════════════════════════════════════════ -->
+<div id="screen-result" class="screen">
+  <div class="result-wrap">
+    <div class="result-ring-wrap">
+      <svg class="result-svg" viewBox="0 0 160 160">
+        <circle class="ring-bg"  cx="80" cy="80" r="68"/>
+        <circle class="ring-arc" id="ring-arc" cx="80" cy="80" r="68"
+          stroke-dasharray="427" stroke-dashoffset="427"/>
+      </svg>
+      <div class="ring-inner">
+        <span class="ring-pct"  id="ring-pct">0</span>
+        <span class="ring-sub"  id="ring-sub"></span>
+      </div>
+    </div>
+
+    <div class="pass-fail" id="pass-fail" style="display:none"></div>
+    <h2 class="result-title" id="result-title"></h2>
+    <p class="result-detail" id="result-detail"></p>
+
+    <div class="result-grid" id="result-grid"></div>
+
+    <div class="result-btns">
+      <button class="btn-primary" id="btn-restart">Play Again</button>
+      <button class="btn-ghost"   id="btn-home-result">← Home</button>
     </div>
   </div>
+</div>
 
-  <!-- QUIZ SCREEN -->
-  <div id="screen-quiz" class="screen">
-    <div class="quiz-wrap">
-
-      <header class="quiz-header">
-        <div class="progress-text">
-          <span id="q-current">1</span> / <span id="q-total">20</span>
-        </div>
-        <div class="score-badge">
-          Score: <span id="score-live">0</span>
-        </div>
-        <button class="btn-exit" id="btn-exit">✕</button>
-      </header>
-
-      <div class="progress-bar-wrap">
-        <div class="progress-bar-fill" id="progress-fill"></div>
-      </div>
-
-      <div class="question-area" id="question-area">
-        <div class="multi-hint" id="multi-hint" style="display:none">
-          Select all correct answers
-        </div>
-        <p class="question-text" id="question-text"></p>
-      </div>
-
-      <div class="options-grid" id="options-grid"></div>
-
-      <div class="feedback-area" id="feedback-area" style="display:none">
-        <div class="feedback-msg" id="feedback-msg"></div>
-      </div>
-
-      <div class="quiz-footer">
-        <button class="btn-next" id="btn-next" style="display:none">Next →</button>
-        <button class="btn-submit" id="btn-submit" style="display:none">Submit Answer</button>
-      </div>
-
+<!-- ══ BROWSE ══════════════════════════════════════════════════ -->
+<div id="screen-browse" class="screen">
+  <div class="browse-wrap">
+    <div class="browse-top">
+      <button class="btn-back-quiz" id="btn-back-browse">← Back</button>
+      <h2>All Questions <span id="browse-count" class="browse-count-chip"></span></h2>
+      <input class="search-input" id="browse-search" type="text" placeholder="Search questions…"/>
     </div>
+    <div class="browse-list" id="browse-list"></div>
   </div>
+</div>
 
-  <!-- RESULT SCREEN -->
-  <div id="screen-result" class="screen">
-    <div class="result-wrap">
-      <div class="result-circle" id="result-circle">
-        <span id="result-pct">0%</span>
-      </div>
-      <h2 class="result-title" id="result-title">Quiz Complete!</h2>
-      <p class="result-score" id="result-score"></p>
-      <div class="result-breakdown" id="result-breakdown"></div>
-      <div class="result-btns">
-        <button class="btn-restart" id="btn-restart">Play Again</button>
-        <button class="btn-home" id="btn-home-result">Home</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- BROWSE SCREEN -->
-  <div id="screen-browse" class="screen">
-    <div class="browse-wrap">
-      <div class="browse-header">
-        <button class="btn-back" id="btn-back-browse">← Back</button>
-        <h2>All Questions <span id="browse-count"></span></h2>
-        <input class="browse-search" id="browse-search" type="text" placeholder="Search questions…" />
-      </div>
-      <div class="browse-list" id="browse-list"></div>
-    </div>
-  </div>
-
-  <script src="questions_data.js"></script>
-  <script src="script.js"></script>
+<script src="questions_data.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
