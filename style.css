@@ -87,9 +87,7 @@ html, body {
 .mode-icon { font-size: 22px; flex-shrink: 0; }
 .mode-card strong { font-size: 15px; font-weight: 700; display: block; }
 .mode-card > span { font-size: 12px; color: var(--muted); font-family: var(--mono); }
-/* make strong + span stack vertically */
-.mode-card > strong,
-.mode-card > span { }
+
 
 /* Exam card special layout */
 .exam-card { border-color: var(--gold); background: rgba(251,191,36,.05); justify-content: space-between; }
@@ -107,15 +105,12 @@ html, body {
   padding: 4px 12px; white-space: nowrap; flex-shrink: 0;
 }
 
-/* 2-column grid for the 4 practice modes */
-.mode-cards > .mode-card:not(.exam-card) {
-  /* override flex above to show icon + two-line text */
-}
+
 /* Grid the 4 non-exam cards */
 .mode-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;
 }
-.mode-grid .mode-card { flex-direction: column; align-items: flex-start; padding: 16px; }
+.mode-grid .mode-card:not(.exam-card) { flex-direction: column; align-items: flex-start; padding: 16px; }
 .mode-grid .mode-card strong { margin-top: 6px; }
 
 .home-wrap .btn-primary { width: 100%; margin-bottom: 10px; }
