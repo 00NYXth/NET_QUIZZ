@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Networking Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HOME SCREEN -->
+  <div id="screen-home" class="screen active">
+    <div class="home-wrap">
+      <div class="logo-badge">NET</div>
+      <h1 class="home-title">Networking<br/><span>Quiz</span></h1>
+      <p class="home-sub">171 questions · CompTIA Network+ prep</p>
+
+      <div class="mode-cards">
+        <div class="mode-card" data-mode="10">
+          <span class="mode-icon">⚡</span>
+          <strong>Quick</strong>
+          <span>10 questions</span>
+        </div>
+        <div class="mode-card" data-mode="20">
+          <span class="mode-icon">🎯</span>
+          <strong>Standard</strong>
+          <span>20 questions</span>
+        </div>
+        <div class="mode-card selected" data-mode="50">
+          <span class="mode-icon">🔥</span>
+          <strong>Challenge</strong>
+          <span>50 questions</span>
+        </div>
+        <div class="mode-card" data-mode="all">
+          <span class="mode-icon">💪</span>
+          <strong>Full Test</strong>
+          <span>All 171</span>
+        </div>
+      </div>
+
+      <button class="btn-start" id="btn-start">Start Quiz →</button>
+
+      <button class="btn-browse" id="btn-browse">Browse All Questions</button>
+    </div>
+  </div>
+
+  <!-- QUIZ SCREEN -->
+  <div id="screen-quiz" class="screen">
+    <div class="quiz-wrap">
+
+      <header class="quiz-header">
+        <div class="progress-text">
+          <span id="q-current">1</span> / <span id="q-total">20</span>
+        </div>
+        <div class="score-badge">
+          Score: <span id="score-live">0</span>
+        </div>
+        <button class="btn-exit" id="btn-exit">✕</button>
+      </header>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+
+      <div class="question-area" id="question-area">
+        <div class="multi-hint" id="multi-hint" style="display:none">
+          Select all correct answers
+        </div>
+        <p class="question-text" id="question-text"></p>
+      </div>
+
+      <div class="options-grid" id="options-grid"></div>
+
+      <div class="feedback-area" id="feedback-area" style="display:none">
+        <div class="feedback-msg" id="feedback-msg"></div>
+      </div>
+
+      <div class="quiz-footer">
+        <button class="btn-next" id="btn-next" style="display:none">Next →</button>
+        <button class="btn-submit" id="btn-submit" style="display:none">Submit Answer</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="screen-result" class="screen">
+    <div class="result-wrap">
+      <div class="result-circle" id="result-circle">
+        <span id="result-pct">0%</span>
+      </div>
+      <h2 class="result-title" id="result-title">Quiz Complete!</h2>
+      <p class="result-score" id="result-score"></p>
+      <div class="result-breakdown" id="result-breakdown"></div>
+      <div class="result-btns">
+        <button class="btn-restart" id="btn-restart">Play Again</button>
+        <button class="btn-home" id="btn-home-result">Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BROWSE SCREEN -->
+  <div id="screen-browse" class="screen">
+    <div class="browse-wrap">
+      <div class="browse-header">
+        <button class="btn-back" id="btn-back-browse">← Back</button>
+        <h2>All Questions <span id="browse-count"></span></h2>
+        <input class="browse-search" id="browse-search" type="text" placeholder="Search questions…" />
+      </div>
+      <div class="browse-list" id="browse-list"></div>
+    </div>
+  </div>
+
+  <script src="questions_data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
