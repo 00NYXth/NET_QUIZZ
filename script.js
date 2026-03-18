@@ -1,334 +1,396 @@
-// ─── STATE ──────────────────────────────────────────────────────────────────
-const state = {
-  mode: 50,
+/* ════════════════════════════════════════════════════════════
+   Networking Quiz – script.js
+   ════════════════════════════════════════════════════════════ */
+
+const LETTERS   = ['A','B','C','D','E'];
+const EXAM_QS   = 43;
+const EXAM_MAX  = 1000;
+const EXAM_PASS = 700;
+
+/* ── State ──────────────────────────────────────────────────── */
+const S = {
+  mode:      20,
   questions: [],
-  current: 0,
-  score: 0,
-  selectedIndices: new Set(),
-  answered: false,
-  results: { correct: 0, wrong: 0, total: 0 }
+  current:   0,
+  score:     0,       // correct count OR accumulated exam pts
+  ptsPerQ:   0,
+  selected:  new Set(),
+  answered:  false,
+  stats:     { correct: 0, wrong: 0, total: 0 }
 };
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
-const $ = (id) => document.getElementById(id);
-const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+/* ── Helpers ────────────────────────────────────────────────── */
+const $  = id  => document.getElementById(id);
+const qs = sel => document.querySelector(sel);
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
+function shuffle(a) {
+  const b = [...a];
+  for (let i = b.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    [b[i], b[j]] = [b[j], b[i]];
   }
-  return a;
+  return b;
 }
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   $(id).classList.add('active');
-  window.scrollTo(0, 0);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ─── HOME SCREEN ────────────────────────────────────────────────────────────
+/* Convert __word__ markers → <span class="underline-word">word</span> */
+function renderQuestionHTML(text) {
+  return text.replace(/__([^_]+)__/g,
+    (_, w) => `<span class="underline-word">${escH(w)}</span>`);
+}
+
+function escH(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Home: mode selection ───────────────────────────────────── */
 document.querySelectorAll('.mode-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
-    const val = card.dataset.mode;
-    state.mode = val === 'all' ? 'all' : parseInt(val);
+    const v = card.dataset.mode;
+    S.mode = (v === 'all' || v === 'exam') ? v : parseInt(v);
   });
 });
 
 $('btn-start').addEventListener('click', startQuiz);
 $('btn-browse').addEventListener('click', openBrowse);
-$('btn-exit').addEventListener('click', () => {
-  if (confirm('Exit quiz? Your progress will be lost.')) showScreen('screen-home');
+
+/* ── Back from quiz ─────────────────────────────────────────── */
+$('btn-back-quiz').addEventListener('click', () => {
+  if (!S.answered && S.current > 0) {
+    if (!confirm('Go back to Home? Your progress will be lost.')) return;
+  }
+  showScreen('screen-home');
 });
+
+/* ── Result screen ──────────────────────────────────────────── */
 $('btn-restart').addEventListener('click', startQuiz);
 $('btn-home-result').addEventListener('click', () => showScreen('screen-home'));
+
+/* ── Browse back ────────────────────────────────────────────── */
 $('btn-back-browse').addEventListener('click', () => showScreen('screen-home'));
 
-// ─── START QUIZ ──────────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════
+   START QUIZ
+   ════════════════════════════════════════════════════════════ */
 function startQuiz() {
   const shuffled = shuffle(ALL_QUESTIONS);
-  state.questions = state.mode === 'all' ? shuffled : shuffled.slice(0, state.mode);
-  state.current = 0;
-  state.score = 0;
-  state.results = { correct: 0, wrong: 0, total: state.questions.length };
 
-  $('q-total').textContent = state.questions.length;
-  $('score-live').textContent = '0';
+  if (S.mode === 'exam') {
+    S.questions = shuffled.slice(0, EXAM_QS);
+    S.ptsPerQ   = Math.floor(EXAM_MAX / EXAM_QS);   // 23 pts each → 989 max, last q covers remainder
+  } else if (S.mode === 'all') {
+    S.questions = shuffled;
+    S.ptsPerQ   = 0;
+  } else {
+    S.questions = shuffled.slice(0, S.mode);
+    S.ptsPerQ   = 0;
+  }
+
+  S.current  = 0;
+  S.score    = 0;
+  S.selected = new Set();
+  S.answered = false;
+  S.stats    = { correct: 0, wrong: 0, total: S.questions.length };
+
+  $('q-total').textContent     = S.questions.length;
+  $('score-live').textContent  = '0';
+  $('score-label').textContent = S.mode === 'exam' ? 'Points' : 'Score';
+
+  if (S.mode === 'exam') {
+    $('exam-pts-info').style.display = 'block';
+    $('pts-per-q').textContent       = S.ptsPerQ;
+  } else {
+    $('exam-pts-info').style.display = 'none';
+  }
 
   showScreen('screen-quiz');
   renderQuestion();
 }
 
-// ─── RENDER QUESTION ─────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════
+   RENDER QUESTION
+   ════════════════════════════════════════════════════════════ */
 function renderQuestion() {
-  const q = state.questions[state.current];
-  state.selectedIndices = new Set();
-  state.answered = false;
+  const q = S.questions[S.current];
+  S.selected = new Set();
+  S.answered = false;
 
-  // Progress
-  const num = state.current + 1;
-  $('q-current').textContent = num;
-  $('progress-fill').style.width = ((num - 1) / state.questions.length * 100) + '%';
+  /* Progress */
+  const num = S.current + 1;
+  $('q-current').textContent    = num;
+  $('progress-fill').style.width = ((num - 1) / S.questions.length * 100) + '%';
 
-  // Multi-answer hint
-  const multiHint = $('multi-hint');
-  if (q.multiple) {
-    multiHint.style.display = 'inline-block';
-  } else {
-    multiHint.style.display = 'none';
-  }
+  /* Multi-answer hint */
+  $('multi-hint').style.display = q.multiple ? 'inline-flex' : 'none';
 
-  // Question text
-  const qArea = $('question-area');
-  $('question-text').textContent = q.question;
-  qArea.classList.remove('question-enter');
-  void qArea.offsetWidth; // reflow
-  qArea.classList.add('question-enter');
+  /* Question text – re-animate */
+  const card = $('question-card');
+  card.style.animation = 'none';
+  void card.offsetWidth;
+  card.style.animation = '';
+  $('question-text').innerHTML = renderQuestionHTML(q.question);
 
-  // Options
-  const grid = $('options-grid');
-  grid.innerHTML = '';
-  grid.classList.remove('question-enter');
-  void grid.offsetWidth;
-  grid.classList.add('question-enter');
+  /* Build options */
+  const list = $('options-list');
+  list.style.animation = 'none';
+  void list.offsetWidth;
+  list.style.animation = '';
+  list.innerHTML = '';
 
   q.options.forEach((opt, idx) => {
     const btn = document.createElement('button');
-    btn.className = 'option-btn';
+    btn.className   = 'opt-btn';
     btn.dataset.idx = idx;
 
-    const letterSpan = document.createElement('span');
-    letterSpan.className = 'option-letter';
-    letterSpan.textContent = LETTERS[idx];
+    const lspan = document.createElement('span');
+    lspan.className   = 'opt-letter';
+    lspan.textContent = LETTERS[idx];
 
-    const textSpan = document.createElement('span');
-    textSpan.textContent = opt;
+    const tspan = document.createElement('span');
+    tspan.textContent = opt;
 
-    btn.appendChild(letterSpan);
-    btn.appendChild(textSpan);
-
-    btn.addEventListener('click', () => handleOptionClick(idx, btn));
-    grid.appendChild(btn);
+    btn.appendChild(lspan);
+    btn.appendChild(tspan);
+    btn.addEventListener('click', () => onOption(idx, btn));
+    list.appendChild(btn);
   });
 
-  // Feedback
-  const feedback = $('feedback-area');
-  feedback.style.display = 'none';
+  /* Feedback hidden */
+  $('feedback-box').style.display = 'none';
 
-  // Buttons
+  /* Buttons */
   if (q.multiple) {
-    $('btn-submit').style.display = 'block';
-    $('btn-next').style.display = 'none';
+    $('btn-submit').style.display = 'inline-block';
+    $('btn-submit').disabled      = true;
+    $('btn-next').style.display   = 'none';
   } else {
     $('btn-submit').style.display = 'none';
-    $('btn-next').style.display = 'none';
+    $('btn-next').style.display   = 'none';
   }
 }
 
-// ─── HANDLE OPTION CLICK ─────────────────────────────────────────────────────
-function handleOptionClick(idx, btn) {
-  if (state.answered) return;
-  const q = state.questions[state.current];
+/* ════════════════════════════════════════════════════════════
+   OPTION CLICK
+   ════════════════════════════════════════════════════════════ */
+function onOption(idx, btn) {
+  if (S.answered) return;
+  const q = S.questions[S.current];
 
   if (q.multiple) {
-    // Toggle selection
-    if (state.selectedIndices.has(idx)) {
-      state.selectedIndices.delete(idx);
+    /* Toggle selection */
+    if (S.selected.has(idx)) {
+      S.selected.delete(idx);
       btn.classList.remove('selected');
-      btn.querySelector('.option-letter').style.background = '';
     } else {
-      state.selectedIndices.add(idx);
+      S.selected.add(idx);
       btn.classList.add('selected');
     }
-    // Enable submit if at least one selected
-    $('btn-submit').disabled = state.selectedIndices.size === 0;
+    $('btn-submit').disabled = S.selected.size === 0;
   } else {
-    // Single answer – reveal immediately
-    state.selectedIndices = new Set([idx]);
-    revealAnswer();
+    /* Single answer → reveal immediately */
+    S.selected = new Set([idx]);
+    reveal();
   }
 }
 
-// Submit multi-answer
+/* Submit button for multi-answer */
 $('btn-submit').addEventListener('click', () => {
-  if (state.selectedIndices.size === 0) return;
-  revealAnswer();
+  if (S.selected.size === 0) return;
+  reveal();
 });
 
-// Next question
-$('btn-next').addEventListener('click', () => {
-  state.current++;
-  if (state.current >= state.questions.length) {
+/* Next button */
+$('btn-next').addEventListener('click', advance);
+
+function advance() {
+  S.current++;
+  if (S.current >= S.questions.length) {
     showResult();
   } else {
     renderQuestion();
+    /* Update progress to current question */
+    $('progress-fill').style.width = (S.current / S.questions.length * 100) + '%';
   }
-  $('progress-fill').style.width = (state.current / state.questions.length * 100) + '%';
-});
-
-// ─── REVEAL ANSWER ───────────────────────────────────────────────────────────
-function revealAnswer() {
-  state.answered = true;
-  const q = state.questions[state.current];
-  const correctSet = new Set(q.correct);
-  const selectedSet = state.selectedIndices;
-
-  // Disable all buttons
-  const btns = $('options-grid').querySelectorAll('.option-btn');
-  btns.forEach(btn => btn.disabled = true);
-
-  // Check correctness
-  let isCorrect;
-  if (q.multiple) {
-    // All correct must be selected, nothing else
-    isCorrect = correctSet.size === selectedSet.size &&
-                [...correctSet].every(i => selectedSet.has(i));
-  } else {
-    isCorrect = correctSet.has([...selectedSet][0]);
-  }
-
-  // Color all buttons
-  btns.forEach((btn, idx) => {
-    const isSelected = selectedSet.has(idx);
-    const isCorrectOption = correctSet.has(idx);
-
-    btn.classList.remove('selected');
-
-    if (isSelected && isCorrectOption) {
-      btn.classList.add('correct');
-    } else if (isSelected && !isCorrectOption) {
-      btn.classList.add('wrong');
-    } else if (!isSelected && isCorrectOption) {
-      btn.classList.add('missed');
-    }
-  });
-
-  // Score
-  if (isCorrect) {
-    state.score++;
-    state.results.correct++;
-    $('score-live').textContent = state.score;
-  } else {
-    state.results.wrong++;
-  }
-
-  // Feedback message
-  const feedback = $('feedback-area');
-  const msg = $('feedback-msg');
-  feedback.style.display = 'block';
-
-  if (isCorrect) {
-    msg.className = 'feedback-msg correct-msg';
-    const phrases = ['Correct! ✓', 'Nice work! ✓', 'That\'s right! ✓', 'Spot on! ✓'];
-    msg.textContent = phrases[Math.floor(Math.random() * phrases.length)];
-  } else {
-    msg.className = 'feedback-msg wrong-msg';
-    const correctLabels = q.correct.map(i => `${LETTERS[i]}. ${q.options[i]}`).join(' / ');
-    msg.textContent = `Incorrect. Correct answer: ${correctLabels}`;
-  }
-
-  // Show next button, hide submit
-  $('btn-submit').style.display = 'none';
-  $('btn-next').style.display = 'block';
 }
 
-// ─── SHOW RESULT ─────────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════
+   REVEAL ANSWER
+   ════════════════════════════════════════════════════════════ */
+function reveal() {
+  S.answered = true;
+  const q          = S.questions[S.current];
+  const correctSet = new Set(q.correct);
+  const selSet     = S.selected;
+
+  /* Disable all buttons */
+  const btns = $('options-list').querySelectorAll('.opt-btn');
+  btns.forEach(b => { b.disabled = true; });
+
+  /* Correct? */
+  let ok;
+  if (q.multiple) {
+    ok = correctSet.size === selSet.size && [...correctSet].every(i => selSet.has(i));
+  } else {
+    ok = correctSet.has([...selSet][0]);
+  }
+
+  /* Colour every button */
+  btns.forEach((btn, idx) => {
+    const sel  = selSet.has(idx);
+    const corr = correctSet.has(idx);
+    btn.classList.remove('selected');
+    if      (sel  && corr)  btn.classList.add('correct');
+    else if (sel  && !corr) btn.classList.add('wrong');
+    else if (!sel && corr)  btn.classList.add('missed');
+  });
+
+  /* Score */
+  if (ok) {
+    S.stats.correct++;
+    S.score += (S.mode === 'exam') ? S.ptsPerQ : 1;
+    $('score-live').textContent = S.score;
+  } else {
+    S.stats.wrong++;
+  }
+
+  /* Feedback message */
+  const box   = $('feedback-box');
+  const inner = $('feedback-inner');
+  box.style.display = 'block';
+
+  if (ok) {
+    inner.className   = 'feedback-inner ok';
+    const praise = ['Correct! ✓', 'Well done! ✓', 'Right! ✓', 'Spot on! ✓', 'Nailed it! ✓'];
+    inner.textContent = praise[Math.floor(Math.random() * praise.length)];
+  } else {
+    inner.className = 'feedback-inner bad';
+    const labels = q.correct
+      .map(i => `${LETTERS[i]}. ${q.options[i]}`)
+      .join('   |   ');
+    inner.textContent = `✗  Incorrect.   Correct answer: ${labels}`;
+  }
+
+  /* Show Next, hide Submit */
+  $('btn-submit').style.display = 'none';
+  $('btn-next').style.display   = 'inline-block';
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESULT SCREEN
+   ════════════════════════════════════════════════════════════ */
 function showResult() {
-  const { correct, wrong, total } = state.results;
-  const pct = Math.round((correct / total) * 100);
+  const { correct, wrong, total } = S.stats;
+  const isExam  = S.mode === 'exam';
+  const examPts = S.score;
+  const pct     = Math.round(correct / total * 100);
+  const arcPct  = isExam ? Math.round(examPts / EXAM_MAX * 100) : pct;
 
-  $('result-pct').textContent = pct + '%';
-  $('result-circle').style.setProperty('--pct', pct + '%');
+  /* Ring animation (circumference ≈ 427) */
+  const arc = $('ring-arc');
+  setTimeout(() => {
+    arc.style.strokeDashoffset = 427 - (427 * arcPct / 100);
+  }, 80);
 
-  // Title based on score
-  let title;
-  if (pct >= 90) title = 'Excellent! 🏆';
-  else if (pct >= 75) title = 'Great Job! 🎉';
-  else if (pct >= 60) title = 'Good Effort! 👍';
-  else if (pct >= 50) title = 'Keep Studying 📚';
-  else title = 'Need More Practice 💪';
-  $('result-title').textContent = title;
+  if (isExam) {
+    const passed = examPts >= EXAM_PASS;
+    arc.className = 'ring-arc ' + (passed ? 'pass' : 'fail');
+    $('ring-pct').textContent = examPts + ' pts';
+    $('ring-sub').textContent = `/ ${EXAM_MAX}`;
 
-  $('result-score').textContent = `${correct} of ${total} correct`;
+    const pf = $('pass-fail');
+    pf.style.display = 'block';
+    pf.className     = 'pass-fail ' + (passed ? 'pass' : 'fail');
+    pf.textContent   = passed ? '✓  PASS' : '✗  FAIL  (need 700 pts)';
 
-  $('result-breakdown').innerHTML = `
-    <div class="breakdown-item">
-      <div class="breakdown-num green">${correct}</div>
-      <div class="breakdown-label">Correct</div>
-    </div>
-    <div class="breakdown-item">
-      <div class="breakdown-num red">${wrong}</div>
-      <div class="breakdown-label">Wrong</div>
-    </div>
-    <div class="breakdown-item">
-      <div class="breakdown-num blue">${total}</div>
-      <div class="breakdown-label">Total</div>
-    </div>
+    $('result-title').textContent  = passed ? 'Exam Passed! 🎓' : 'Exam Failed 📚';
+    $('result-detail').textContent = `${correct} of ${total} correct  ·  ${examPts} / ${EXAM_MAX} pts`;
+  } else {
+    arc.className = 'ring-arc';
+    $('ring-pct').textContent = pct + '%';
+    $('ring-sub').textContent = '';
+    $('pass-fail').style.display = 'none';
+
+    let title;
+    if      (pct >= 90) title = 'Excellent! 🏆';
+    else if (pct >= 75) title = 'Great Job! 🎉';
+    else if (pct >= 60) title = 'Good Effort! 👍';
+    else if (pct >= 50) title = 'Keep Studying 📖';
+    else                title = 'More Practice Needed 💪';
+    $('result-title').textContent  = title;
+    $('result-detail').textContent = `${correct} of ${total} correct`;
+  }
+
+  /* Grid */
+  $('result-grid').innerHTML = `
+    <div class="rg-item"><div class="rg-num g">${correct}</div><div class="rg-lbl">Correct</div></div>
+    <div class="rg-item"><div class="rg-num r">${wrong}</div><div class="rg-lbl">Wrong</div></div>
+    <div class="rg-item"><div class="rg-num b">${total}</div><div class="rg-lbl">Total</div></div>
   `;
 
   $('progress-fill').style.width = '100%';
   showScreen('screen-result');
 }
 
-// ─── BROWSE SCREEN ───────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════
+   BROWSE SCREEN
+   ════════════════════════════════════════════════════════════ */
 function openBrowse() {
-  renderBrowseList(ALL_QUESTIONS);
+  $('browse-search').value = '';
+  renderBrowse(ALL_QUESTIONS);
   $('browse-count').textContent = `(${ALL_QUESTIONS.length})`;
   showScreen('screen-browse');
 }
 
-function renderBrowseList(list) {
+function renderBrowse(list) {
   const container = $('browse-list');
   container.innerHTML = '';
 
-  if (list.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px">No questions found.</p>';
+  if (!list.length) {
+    container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:48px 0">No questions found.</p>';
     return;
   }
 
   list.forEach((q, qi) => {
     const card = document.createElement('div');
-    card.className = 'browse-card';
+    card.className = 'bc';
 
-    const multiTag = q.multiple ? '<span class="browse-multi-tag">MULTI</span>' : '';
-    let optsHtml = q.options.map((opt, i) => {
-      const isCorrect = q.correct.includes(i);
-      return `
-        <div class="browse-opt ${isCorrect ? 'correct-opt' : ''}">
-          <span class="browse-opt-letter">${LETTERS[i]}</span>
-          <span>${opt}</span>
-          ${isCorrect ? '<span style="margin-left:auto;font-size:12px">✓</span>' : ''}
-        </div>`;
+    const multiTag = q.multiple
+      ? '<span class="bc-multi">MULTI</span>' : '';
+
+    const optsHtml = q.options.map((opt, i) => {
+      const corr = q.correct.includes(i);
+      return `<div class="bc-opt${corr ? ' cor' : ''}">
+        <span class="bc-opt-ltr">${LETTERS[i]}</span>
+        <span>${escH(opt)}</span>
+        ${corr ? '<span class="bc-check">✓</span>' : ''}
+      </div>`;
     }).join('');
 
     card.innerHTML = `
-      <div class="browse-q-num">Q${qi + 1} ${multiTag}</div>
-      <div class="browse-q-text">${escapeHtml(q.question)}</div>
-      <div class="browse-options">${optsHtml}</div>
+      <div class="bc-num">Q${qi + 1}${multiTag}</div>
+      <div class="bc-q">${renderQuestionHTML(q.question)}</div>
+      <div class="bc-opts">${optsHtml}</div>
     `;
     container.appendChild(card);
   });
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Search
-$('browse-search').addEventListener('input', (e) => {
+$('browse-search').addEventListener('input', e => {
   const term = e.target.value.toLowerCase().trim();
-  if (!term) {
-    renderBrowseList(ALL_QUESTIONS);
-    $('browse-count').textContent = `(${ALL_QUESTIONS.length})`;
-    return;
-  }
-  const filtered = ALL_QUESTIONS.filter(q =>
-    q.question.toLowerCase().includes(term) ||
-    q.options.some(o => o.toLowerCase().includes(term))
-  );
-  renderBrowseList(filtered);
-  $('browse-count').textContent = `(${filtered.length} of ${ALL_QUESTIONS.length})`;
+  const list = term
+    ? ALL_QUESTIONS.filter(q =>
+        q.question.toLowerCase().includes(term) ||
+        q.options.some(o => o.toLowerCase().includes(term)))
+    : ALL_QUESTIONS;
+  renderBrowse(list);
+  $('browse-count').textContent = term
+    ? `(${list.length} of ${ALL_QUESTIONS.length})`
+    : `(${ALL_QUESTIONS.length})`;
 });
